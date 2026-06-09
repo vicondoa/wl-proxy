@@ -379,9 +379,7 @@ fn format_interface_message_functions(w: &mut impl Write, interface: &Interface)
         }
         flush_words!();
         if msg.ty == Some(MessageType::Destructor) {
-            if msg.is_request {
-                wl!(r#"        self.core.handle_client_destroy();"#)?;
-            } else {
+            if !msg.is_request {
                 wl!(r#"        drop(fmt);"#)?;
                 wl!(r#"        drop(outgoing_ref);"#)?;
                 wl!(r#"        drop(client_ref);"#)?;

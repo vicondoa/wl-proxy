@@ -415,7 +415,6 @@ impl ExtImageCopyCaptureManagerV1 {
             id,
             2,
         ]);
-        self.core.handle_client_destroy();
         Ok(())
     }
 

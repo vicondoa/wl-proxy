@@ -319,7 +319,6 @@ impl ZwlrOutputPowerV1 {
             id,
             1,
         ]);
-        self.core.handle_client_destroy();
         Ok(())
     }
 

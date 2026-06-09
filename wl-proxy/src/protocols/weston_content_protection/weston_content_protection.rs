@@ -95,7 +95,6 @@ impl WestonContentProtection {
             id,
             0,
         ]);
-        self.core.handle_client_destroy();
         Ok(())
     }
 
