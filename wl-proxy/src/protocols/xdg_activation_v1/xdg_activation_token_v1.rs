@@ -500,7 +500,7 @@ impl XdgActivationTokenV1 {
             id,
             4,
         ]);
-        self.core.handle_server_destroy();
+        self.core.handle_client_destroy();
         Ok(())
     }
 

@@ -237,7 +237,7 @@ impl ZcosmicWorkspaceManagerV2 {
             id,
             1,
         ]);
-        self.core.handle_server_destroy();
+        self.core.handle_client_destroy();
         Ok(())
     }
 

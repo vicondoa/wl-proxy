@@ -519,10 +519,26 @@ impl ObjectCore {
             return Err(IdError::NotClientId(id));
         }
         let objects = &mut *client.endpoint.objects.borrow_mut();
-        let Entry::Vacant(entry) = objects.entry(id) else {
-            return Err(IdError::ClientIdInUse(id));
-        };
-        entry.insert(slf);
+        match objects.entry(id) {
+            Entry::Vacant(entry) => {
+                entry.insert(slf);
+            }
+            Entry::Occupied(mut entry) => {
+                let old = entry.get();
+                let old_core = old.core();
+                if !old_core.awaiting_delete_id.get() {
+                    return Err(IdError::ClientIdInUse(id));
+                }
+                // Some cross-domain clients reuse a destroyed low client ID
+                // before the compositor's wl_display.delete_id arrives. Keep
+                // the server-side object alive for the later delete_id, but
+                // detach its stale client mapping so the replacement can bind.
+                old_core.client_obj_id.take();
+                old_core.client_id.take();
+                old_core.client.take();
+                entry.insert(slf);
+            }
+        }
         self.set_client_id_(client, id);
         Ok(())
     }
