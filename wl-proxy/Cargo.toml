@@ -59,7 +59,9 @@ suite-external = [
     "protocol-drm",
     "protocol-input_method_unstable_v2",
     "protocol-org_kde_kwin_server_decoration_v1",
+    "protocol-stream",
     "protocol-virtual_keyboard_unstable_v1",
+    "protocol-wl_eglstream_controller",
 ]
 suite-wayland-protocols = [
     "protocol-alpha_modifier_v1",
@@ -171,7 +173,9 @@ protocol-jay_tray_v1 = ["protocol-xdg_shell"]
 protocol-drm = []
 protocol-input_method_unstable_v2 = ["protocol-text_input_unstable_v3"]
 protocol-org_kde_kwin_server_decoration_v1 = []
+protocol-stream = []
 protocol-virtual_keyboard_unstable_v1 = []
+protocol-wl_eglstream_controller = []
 protocol-alpha_modifier_v1 = []
 protocol-color_management_v1 = []
 protocol-color_representation_v1 = []

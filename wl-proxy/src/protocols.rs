@@ -24,8 +24,12 @@ pub mod drm;
 pub mod input_method_unstable_v2;
 #[cfg(feature = "protocol-org_kde_kwin_server_decoration_v1")]
 pub mod org_kde_kwin_server_decoration_v1;
+#[cfg(feature = "protocol-stream")]
+pub mod stream;
 #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
 pub mod virtual_keyboard_unstable_v1;
+#[cfg(feature = "protocol-wl_eglstream_controller")]
+pub mod wl_eglstream_controller;
 pub mod wayland;
 #[cfg(feature = "protocol-alpha_modifier_v1")]
 pub mod alpha_modifier_v1;
@@ -288,6 +292,18 @@ mod all_types {
     pub(super) use super::org_kde_kwin_server_decoration_v1::org_kde_kwin_server_decoration_manager::OrgKdeKwinServerDecorationManager;
     #[cfg(feature = "protocol-org_kde_kwin_server_decoration_v1")]
     pub(super) use super::org_kde_kwin_server_decoration_v1::org_kde_kwin_server_decoration_manager::OrgKdeKwinServerDecorationManagerMode;
+    #[cfg(feature = "protocol-stream")]
+    pub(super) use super::stream::wl_eglstream::WlEglstream;
+    #[cfg(feature = "protocol-stream")]
+    pub(super) use super::stream::wl_eglstream::WlEglstreamError;
+    #[cfg(feature = "protocol-stream")]
+    pub(super) use super::stream::wl_eglstream::WlEglstreamHandleType;
+    #[cfg(feature = "protocol-stream")]
+    pub(super) use super::stream::wl_eglstream::WlEglstreamAttrib;
+    #[cfg(feature = "protocol-stream")]
+    pub(super) use super::stream::wl_eglstream_display::WlEglstreamDisplay;
+    #[cfg(feature = "protocol-stream")]
+    pub(super) use super::stream::wl_eglstream_display::WlEglstreamDisplayCap;
     #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
     pub(super) use super::virtual_keyboard_unstable_v1::zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1;
     #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
@@ -296,6 +312,12 @@ mod all_types {
     pub(super) use super::virtual_keyboard_unstable_v1::zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1;
     #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
     pub(super) use super::virtual_keyboard_unstable_v1::zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1Error;
+    #[cfg(feature = "protocol-wl_eglstream_controller")]
+    pub(super) use super::wl_eglstream_controller::wl_eglstream_controller::WlEglstreamController;
+    #[cfg(feature = "protocol-wl_eglstream_controller")]
+    pub(super) use super::wl_eglstream_controller::wl_eglstream_controller::WlEglstreamControllerPresentMode;
+    #[cfg(feature = "protocol-wl_eglstream_controller")]
+    pub(super) use super::wl_eglstream_controller::wl_eglstream_controller::WlEglstreamControllerAttrib;
     pub(super) use super::wayland::wl_buffer::WlBuffer;
     pub(super) use super::wayland::wl_callback::WlCallback;
     pub(super) use super::wayland::wl_compositor::WlCompositor;
@@ -1310,6 +1332,14 @@ mod all_types {
                     #[cfg(feature = "protocol-org_kde_kwin_server_decoration_v1")] { Some(ObjectInterface::OrgKdeKwinServerDecorationManager) }
                     #[cfg(not(feature = "protocol-org_kde_kwin_server_decoration_v1"))] { None }
                 },
+                "wl_eglstream" => {
+                    #[cfg(feature = "protocol-stream")] { Some(ObjectInterface::WlEglstream) }
+                    #[cfg(not(feature = "protocol-stream"))] { None }
+                },
+                "wl_eglstream_display" => {
+                    #[cfg(feature = "protocol-stream")] { Some(ObjectInterface::WlEglstreamDisplay) }
+                    #[cfg(not(feature = "protocol-stream"))] { None }
+                },
                 "zwp_virtual_keyboard_manager_v1" => {
                     #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")] { Some(ObjectInterface::ZwpVirtualKeyboardManagerV1) }
                     #[cfg(not(feature = "protocol-virtual_keyboard_unstable_v1"))] { None }
@@ -1317,6 +1347,10 @@ mod all_types {
                 "zwp_virtual_keyboard_v1" => {
                     #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")] { Some(ObjectInterface::ZwpVirtualKeyboardV1) }
                     #[cfg(not(feature = "protocol-virtual_keyboard_unstable_v1"))] { None }
+                },
+                "wl_eglstream_controller" => {
+                    #[cfg(feature = "protocol-wl_eglstream_controller")] { Some(ObjectInterface::WlEglstreamController) }
+                    #[cfg(not(feature = "protocol-wl_eglstream_controller"))] { None }
                 },
                 "wl_buffer" => Some(ObjectInterface::WlBuffer),
                 "wl_callback" => Some(ObjectInterface::WlCallback),
@@ -2429,6 +2463,20 @@ mod all_types {
                     }
                     Ok(OrgKdeKwinServerDecorationManager::new(state, version))
                 }
+                #[cfg(feature = "protocol-stream")]
+                Self::WlEglstream => {
+                    if version > WlEglstream::XML_VERSION {
+                        return Err(ObjectError(ObjectErrorKind::MaxVersion(self, version)));
+                    }
+                    Ok(WlEglstream::new(state, version))
+                }
+                #[cfg(feature = "protocol-stream")]
+                Self::WlEglstreamDisplay => {
+                    if version > WlEglstreamDisplay::XML_VERSION {
+                        return Err(ObjectError(ObjectErrorKind::MaxVersion(self, version)));
+                    }
+                    Ok(WlEglstreamDisplay::new(state, version))
+                }
                 #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
                 Self::ZwpVirtualKeyboardManagerV1 => {
                     if version > ZwpVirtualKeyboardManagerV1::XML_VERSION {
@@ -2442,6 +2490,13 @@ mod all_types {
                         return Err(ObjectError(ObjectErrorKind::MaxVersion(self, version)));
                     }
                     Ok(ZwpVirtualKeyboardV1::new(state, version))
+                }
+                #[cfg(feature = "protocol-wl_eglstream_controller")]
+                Self::WlEglstreamController => {
+                    if version > WlEglstreamController::XML_VERSION {
+                        return Err(ObjectError(ObjectErrorKind::MaxVersion(self, version)));
+                    }
+                    Ok(WlEglstreamController::new(state, version))
                 }
                 Self::WlBuffer => {
                     if version > WlBuffer::XML_VERSION {
@@ -4242,12 +4297,21 @@ pub enum ObjectInterface {
     /// org_kde_kwin_server_decoration_manager
     #[cfg(feature = "protocol-org_kde_kwin_server_decoration_v1")]
     OrgKdeKwinServerDecorationManager,
+    /// wl_eglstream
+    #[cfg(feature = "protocol-stream")]
+    WlEglstream,
+    /// wl_eglstream_display
+    #[cfg(feature = "protocol-stream")]
+    WlEglstreamDisplay,
     /// zwp_virtual_keyboard_manager_v1
     #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
     ZwpVirtualKeyboardManagerV1,
     /// zwp_virtual_keyboard_v1
     #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
     ZwpVirtualKeyboardV1,
+    /// wl_eglstream_controller
+    #[cfg(feature = "protocol-wl_eglstream_controller")]
+    WlEglstreamController,
     /// wl_buffer
     WlBuffer,
     /// wl_callback
@@ -5026,10 +5090,16 @@ impl ObjectInterface {
             Self::OrgKdeKwinServerDecoration => "org_kde_kwin_server_decoration",
             #[cfg(feature = "protocol-org_kde_kwin_server_decoration_v1")]
             Self::OrgKdeKwinServerDecorationManager => "org_kde_kwin_server_decoration_manager",
+            #[cfg(feature = "protocol-stream")]
+            Self::WlEglstream => "wl_eglstream",
+            #[cfg(feature = "protocol-stream")]
+            Self::WlEglstreamDisplay => "wl_eglstream_display",
             #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
             Self::ZwpVirtualKeyboardManagerV1 => "zwp_virtual_keyboard_manager_v1",
             #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
             Self::ZwpVirtualKeyboardV1 => "zwp_virtual_keyboard_v1",
+            #[cfg(feature = "protocol-wl_eglstream_controller")]
+            Self::WlEglstreamController => "wl_eglstream_controller",
             Self::WlBuffer => "wl_buffer",
             Self::WlCallback => "wl_callback",
             Self::WlCompositor => "wl_compositor",
@@ -5560,10 +5630,16 @@ impl ObjectInterface {
             Self::OrgKdeKwinServerDecoration => 1,
             #[cfg(feature = "protocol-org_kde_kwin_server_decoration_v1")]
             Self::OrgKdeKwinServerDecorationManager => 1,
+            #[cfg(feature = "protocol-stream")]
+            Self::WlEglstream => 1,
+            #[cfg(feature = "protocol-stream")]
+            Self::WlEglstreamDisplay => 1,
             #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
             Self::ZwpVirtualKeyboardManagerV1 => 1,
             #[cfg(feature = "protocol-virtual_keyboard_unstable_v1")]
             Self::ZwpVirtualKeyboardV1 => 1,
+            #[cfg(feature = "protocol-wl_eglstream_controller")]
+            Self::WlEglstreamController => 2,
             Self::WlBuffer => 1,
             Self::WlCallback => 1,
             Self::WlCompositor => 7,
