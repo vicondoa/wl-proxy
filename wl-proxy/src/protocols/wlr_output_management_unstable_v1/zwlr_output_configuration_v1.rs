@@ -655,7 +655,6 @@ impl ZwlrOutputConfigurationV1 {
             id,
             4,
         ]);
-        self.core.handle_client_destroy();
         Ok(())
     }
 

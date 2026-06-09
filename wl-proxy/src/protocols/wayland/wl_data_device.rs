@@ -950,7 +950,6 @@ impl WlDataDevice {
             id,
             2,
         ]);
-        self.core.handle_client_destroy();
         Ok(())
     }
 

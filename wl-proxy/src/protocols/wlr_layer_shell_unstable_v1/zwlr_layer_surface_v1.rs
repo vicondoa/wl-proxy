@@ -808,7 +808,6 @@ impl ZwlrLayerSurfaceV1 {
             id,
             7,
         ]);
-        self.core.handle_client_destroy();
         Ok(())
     }
 

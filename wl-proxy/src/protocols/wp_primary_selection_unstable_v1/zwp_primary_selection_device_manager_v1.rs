@@ -325,7 +325,6 @@ impl ZwpPrimarySelectionDeviceManagerV1 {
             id,
             2,
         ]);
-        self.core.handle_client_destroy();
         Ok(())
     }
 

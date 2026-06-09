@@ -393,7 +393,6 @@ impl ZwpVirtualKeyboardV1 {
             id,
             3,
         ]);
-        self.core.handle_client_destroy();
         Ok(())
     }
 
