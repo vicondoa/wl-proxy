@@ -178,7 +178,8 @@ fn many_fds_in_one_recvmsg_are_not_truncated() {
     }
 
     assert!(
-        super::write_to_socket(write_fd.as_raw_fd(), &mut out).unwrap() == super::FlushResult::Done
+        super::write_to_socket(write_fd.as_raw_fd(), "test", &mut out).unwrap()
+            == super::FlushResult::Done
     );
 
     let mut input = super::InputBuffer::default();
@@ -186,6 +187,7 @@ fn many_fds_in_one_recvmsg_are_not_truncated() {
     let mut may_read_from_socket = true;
     let msg = super::read_message(
         read_fd.as_raw_fd(),
+        "test",
         &mut may_read_from_socket,
         &mut input,
         &mut received,

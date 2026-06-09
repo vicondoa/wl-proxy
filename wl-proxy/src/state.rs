@@ -273,7 +273,12 @@ impl State {
             return Ok(false);
         }
         while let Some(ewc) = self.flushable_endpoints.pop() {
-            let res = match ewc.endpoint.flush() {
+            let label = if ewc.client.is_some() {
+                "proxy->client"
+            } else {
+                "proxy->server"
+            };
+            let res = match ewc.endpoint.flush(label) {
                 Ok(r) => r,
                 Err(e) => {
                     let is_closed = matches!(e, EndpointError::Flush(TransError::Closed));
