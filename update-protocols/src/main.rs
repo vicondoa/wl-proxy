@@ -56,7 +56,9 @@ fn main() {
             allow: &[
                 "input_method_unstable_v2",
                 "drm",
+                "stream",
                 "virtual_keyboard_unstable_v1",
+                "wl_eglstream_controller",
             ],
             block: &[
                 "agl_screenshooter",
@@ -68,10 +70,8 @@ fn main() {
                 "gtk",
                 "mir_shell_unstable_v1",
                 "overlay_prioritizer",
-                "stream",
                 "surface_augmenter",
                 "tizen_extension",
-                "wl_eglstream_controller",
             ],
         },
         // excluded: they make breaking changes to their protocols
