@@ -9,6 +9,7 @@ use {
         trans::{HEADER_SIZE, MAX_MESSAGE_SIZE},
     },
     std::{
+        collections::VecDeque,
         os::fd::{AsRawFd, OwnedFd},
         rc::Rc,
     },
@@ -153,4 +154,46 @@ fn echo_fd() {
     echo.set_handler(Handler(fd1, fd2, false));
     tp.sync();
     assert!(echo.get_handler_mut::<Handler>().2);
+}
+
+#[test]
+fn many_fds_in_one_recvmsg_are_not_truncated() {
+    let (read_fd, write_fd) = uapi::socketpair(
+        uapi::c::AF_UNIX,
+        uapi::c::SOCK_STREAM | uapi::c::SOCK_CLOEXEC,
+        0,
+    )
+    .unwrap();
+    let fds: Vec<Rc<OwnedFd>> = (0..64)
+        .map(|_| Rc::new(uapi::memfd_create("", 0).unwrap().into()))
+        .collect();
+    let mut out = super::OutputBuffer::default();
+
+    {
+        let mut fmt = out.formatter().unwrap();
+        for fd in &fds {
+            fmt.fds.push_back(fd.clone());
+        }
+        fmt.words([1, 0]);
+    }
+
+    assert!(
+        super::write_to_socket(write_fd.as_raw_fd(), &mut out).unwrap() == super::FlushResult::Done
+    );
+
+    let mut input = super::InputBuffer::default();
+    let mut received = VecDeque::new();
+    let mut may_read_from_socket = true;
+    let msg = super::read_message(
+        read_fd.as_raw_fd(),
+        &mut may_read_from_socket,
+        &mut input,
+        &mut received,
+    )
+    .unwrap()
+    .unwrap();
+
+    assert_eq!(msg[0], 1);
+    assert_eq!(msg[1] >> 16, HEADER_SIZE as u32);
+    assert_eq!(received.len(), fds.len());
 }
