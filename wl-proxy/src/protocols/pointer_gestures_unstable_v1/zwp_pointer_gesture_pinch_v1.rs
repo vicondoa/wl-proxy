@@ -99,7 +99,7 @@ impl ZwpPointerGesturePinchV1 {
             id,
             0,
         ]);
-        self.core.handle_server_destroy();
+        self.core.handle_client_destroy();
         Ok(())
     }
 

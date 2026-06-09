@@ -1525,7 +1525,7 @@ impl ZwpInputMethodV2 {
             id,
             6,
         ]);
-        self.core.handle_server_destroy();
+        self.core.handle_client_destroy();
         Ok(())
     }
 

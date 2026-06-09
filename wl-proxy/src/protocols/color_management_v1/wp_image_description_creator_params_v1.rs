@@ -172,7 +172,7 @@ impl WpImageDescriptionCreatorParamsV1 {
             0,
             arg0_id,
         ]);
-        self.core.handle_server_destroy();
+        self.core.handle_client_destroy();
         Ok(())
     }
 

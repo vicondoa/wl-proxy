@@ -207,7 +207,7 @@ impl WpDrmLeaseRequestV1 {
             1,
             arg0_id,
         ]);
-        self.core.handle_server_destroy();
+        self.core.handle_client_destroy();
         Ok(())
     }
 
