@@ -78,6 +78,8 @@ pub enum TransError {
     MessageTooLarge(usize),
     #[error("message has a supposed length {0} that is not a multiple of {WORD_SIZE}")]
     MessageNotAligned(usize),
+    #[error("ancillary data was truncated while receiving file descriptors")]
+    AncillaryTruncated,
 }
 
 pub(crate) fn read_message<'a>(
@@ -140,10 +142,15 @@ fn read_from_socket(
 ) -> Result<(), TransError> {
     let mut iovec =
         &mut uapi::as_bytes_mut(&mut buffer.buffer[buffer.valid_from_word..])[buffer.valid_bytes..];
-    let mut control_buf = [0u8; 128];
+    // Linux allows up to 253 file descriptors in one SCM_RIGHTS control
+    // message. Dmabuf-heavy clients can batch several fd-bearing Wayland
+    // messages in one recvmsg, so a tiny control buffer silently corrupts the
+    // message/fd association unless MSG_CTRUNC is handled fail-closed.
+    const SCM_MAX_FD: usize = 253;
+    let mut control_buf = vec![0u8; uapi::cmsg_space(size_of::<RawFd>() * SCM_MAX_FD)];
     let mut header = MsghdrMut {
         iov: slice::from_mut(&mut iovec),
-        control: Some(&mut control_buf),
+        control: Some(control_buf.as_mut_slice()),
         name: sockaddr_none_mut(),
         flags: 0,
     };
@@ -158,6 +165,9 @@ fn read_from_socket(
             }
         };
     buffer.valid_bytes += init.len();
+    if header.flags & c::MSG_CTRUNC != 0 {
+        return Err(TransError::AncillaryTruncated);
+    }
     while control.is_not_empty() {
         let (_, hdr, data) = uapi::cmsg_read(&mut control).unwrap();
         if hdr.cmsg_level != c::SOL_SOCKET || hdr.cmsg_type != c::SCM_RIGHTS {
