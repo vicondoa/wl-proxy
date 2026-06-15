@@ -245,7 +245,6 @@ impl ZwpTabletPadV2 {
             id,
             1,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 

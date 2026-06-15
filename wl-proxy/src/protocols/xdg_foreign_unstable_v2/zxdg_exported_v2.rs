@@ -92,7 +92,6 @@ impl ZxdgExportedV2 {
             id,
             0,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 

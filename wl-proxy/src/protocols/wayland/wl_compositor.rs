@@ -299,7 +299,6 @@ impl WlCompositor {
             id,
             2,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 

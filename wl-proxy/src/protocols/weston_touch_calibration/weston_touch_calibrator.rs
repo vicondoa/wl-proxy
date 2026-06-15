@@ -116,7 +116,6 @@ impl WestonTouchCalibrator {
             id,
             0,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 

@@ -541,7 +541,6 @@ impl ZcosmicOutputManagerV1 {
             id,
             3,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 

@@ -89,7 +89,6 @@ impl WpCursorShapeDeviceV1 {
             id,
             0,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 

@@ -773,7 +773,6 @@ impl ZwlrVirtualPointerV1 {
             id,
             8,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 

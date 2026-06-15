@@ -95,7 +95,6 @@ impl RiverNodeV1 {
             id,
             0,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 
@@ -352,6 +351,14 @@ impl RiverNodeV1 {
     ///
     /// Attempting to place a node above itself has no effect.
     ///
+    /// Given nodes A, B, C currently rendered in that order with C on top
+    /// and A on the bottom, the following example demonstrates the behavior
+    /// of this request and the meaning of "directly above":
+    ///
+    /// 1. A.place_above(C) -> B, C, A
+    /// 2. A.place_above(B) -> B, A, C
+    /// 3. B.place_above(A) -> A, B, C
+    ///
     /// This request modifies rendering state and may only be made as part of a
     /// render sequence, see the river_window_manager_v1 description.
     ///
@@ -412,6 +419,14 @@ impl RiverNodeV1 {
     ///
     /// Attempting to place a node above itself has no effect.
     ///
+    /// Given nodes A, B, C currently rendered in that order with C on top
+    /// and A on the bottom, the following example demonstrates the behavior
+    /// of this request and the meaning of "directly above":
+    ///
+    /// 1. A.place_above(C) -> B, C, A
+    /// 2. A.place_above(B) -> B, A, C
+    /// 3. B.place_above(A) -> A, B, C
+    ///
     /// This request modifies rendering state and may only be made as part of a
     /// render sequence, see the river_window_manager_v1 description.
     ///
@@ -440,6 +455,14 @@ impl RiverNodeV1 {
     /// compositor's render list.
     ///
     /// Attempting to place a node below itself has no effect.
+    ///
+    /// Given nodes A, B, C currently rendered in that order with C on top
+    /// and A on the bottom, the following example demonstrates the behavior
+    /// of this request and the meaning of "directly below":
+    ///
+    /// 1. C.place_below(A) -> C, A, B
+    /// 2. C.place_below(B) -> A, C, B
+    /// 3. B.place_below(C) -> A, B, C
     ///
     /// This request modifies rendering state and may only be made as part of a
     /// render sequence, see the river_window_manager_v1 description.
@@ -500,6 +523,14 @@ impl RiverNodeV1 {
     /// compositor's render list.
     ///
     /// Attempting to place a node below itself has no effect.
+    ///
+    /// Given nodes A, B, C currently rendered in that order with C on top
+    /// and A on the bottom, the following example demonstrates the behavior
+    /// of this request and the meaning of "directly below":
+    ///
+    /// 1. C.place_below(A) -> C, A, B
+    /// 2. C.place_below(B) -> A, C, B
+    /// 3. B.place_below(C) -> A, B, C
     ///
     /// This request modifies rendering state and may only be made as part of a
     /// render sequence, see the river_window_manager_v1 description.
@@ -639,6 +670,14 @@ pub trait RiverNodeV1Handler: Any {
     ///
     /// Attempting to place a node above itself has no effect.
     ///
+    /// Given nodes A, B, C currently rendered in that order with C on top
+    /// and A on the bottom, the following example demonstrates the behavior
+    /// of this request and the meaning of "directly above":
+    ///
+    /// 1. A.place_above(C) -> B, C, A
+    /// 2. A.place_above(B) -> B, A, C
+    /// 3. B.place_above(A) -> A, B, C
+    ///
     /// This request modifies rendering state and may only be made as part of a
     /// render sequence, see the river_window_manager_v1 description.
     ///
@@ -671,6 +710,14 @@ pub trait RiverNodeV1Handler: Any {
     /// compositor's render list.
     ///
     /// Attempting to place a node below itself has no effect.
+    ///
+    /// Given nodes A, B, C currently rendered in that order with C on top
+    /// and A on the bottom, the following example demonstrates the behavior
+    /// of this request and the meaning of "directly below":
+    ///
+    /// 1. C.place_below(A) -> C, A, B
+    /// 2. C.place_below(B) -> A, C, B
+    /// 3. B.place_below(C) -> A, B, C
     ///
     /// This request modifies rendering state and may only be made as part of a
     /// render sequence, see the river_window_manager_v1 description.

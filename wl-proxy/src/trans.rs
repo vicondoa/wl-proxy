@@ -1,9 +1,10 @@
 use {
+    crate::utils::env::{WL_PROXY_HEXDUMP, WL_PROXY_HEXDUMP_LIMIT},
     isnt::std_1::primitive::IsntSliceExt,
     smallvec::SmallVec,
     std::{
         collections::VecDeque,
-        io,
+        env, io,
         mem::{self, MaybeUninit},
         os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
         rc::Rc,
@@ -78,10 +79,13 @@ pub enum TransError {
     MessageTooLarge(usize),
     #[error("message has a supposed length {0} that is not a multiple of {WORD_SIZE}")]
     MessageNotAligned(usize),
+    #[error("ancillary data was truncated while receiving file descriptors")]
+    AncillaryTruncated,
 }
 
 pub(crate) fn read_message<'a>(
     socket: RawFd,
+    label: &str,
     may_read_from_socket: &mut bool,
     buffer: &'a mut InputBuffer,
     fds: &mut VecDeque<Rc<OwnedFd>>,
@@ -95,7 +99,7 @@ pub(crate) fn read_message<'a>(
     }
     if buffer.valid_bytes < HEADER_SIZE {
         if mem::take(may_read_from_socket) {
-            read_from_socket(socket, buffer, fds)?;
+            read_from_socket(socket, label, buffer, fds)?;
         }
         if buffer.valid_bytes < HEADER_SIZE {
             return Ok(None);
@@ -120,7 +124,7 @@ pub(crate) fn read_message<'a>(
     };
     if size > buffer.valid_bytes {
         if mem::take(may_read_from_socket) {
-            read_from_socket(socket, buffer, fds)?;
+            read_from_socket(socket, label, buffer, fds)?;
         }
         if size > buffer.valid_bytes {
             return Ok(None);
@@ -135,15 +139,21 @@ pub(crate) fn read_message<'a>(
 
 fn read_from_socket(
     fd: RawFd,
+    label: &str,
     buffer: &mut InputBuffer,
     fds: &mut VecDeque<Rc<OwnedFd>>,
 ) -> Result<(), TransError> {
     let mut iovec =
         &mut uapi::as_bytes_mut(&mut buffer.buffer[buffer.valid_from_word..])[buffer.valid_bytes..];
-    let mut control_buf = [0u8; 128];
+    // Linux allows up to 253 file descriptors in one SCM_RIGHTS control
+    // message. Dmabuf-heavy clients can batch several fd-bearing Wayland
+    // messages in one recvmsg, so a tiny control buffer silently corrupts the
+    // message/fd association unless MSG_CTRUNC is handled fail-closed.
+    const SCM_MAX_FD: usize = 253;
+    let mut control_buf = vec![0u8; uapi::cmsg_space(size_of::<RawFd>() * SCM_MAX_FD)];
     let mut header = MsghdrMut {
         iov: slice::from_mut(&mut iovec),
-        control: Some(&mut control_buf),
+        control: Some(control_buf.as_mut_slice()),
         name: sockaddr_none_mut(),
         flags: 0,
     };
@@ -157,37 +167,55 @@ fn read_from_socket(
                 )));
             }
         };
+    let dump = hexdump_enabled().then(|| {
+        init.iter()
+            .flat_map(|segment| segment.iter().copied())
+            .collect::<Vec<_>>()
+    });
     buffer.valid_bytes += init.len();
+    if header.flags & c::MSG_CTRUNC != 0 {
+        return Err(TransError::AncillaryTruncated);
+    }
+    let mut fd_count = 0usize;
     while control.is_not_empty() {
         let (_, hdr, data) = uapi::cmsg_read(&mut control).unwrap();
         if hdr.cmsg_level != c::SOL_SOCKET || hdr.cmsg_type != c::SCM_RIGHTS {
             continue;
         }
         for fd in uapi::pod_iter::<RawFd, _>(data).unwrap() {
+            fd_count += 1;
             // SAFETY: The kernel guarantees that fd is valid
             unsafe {
                 fds.push_back(Rc::new(OwnedFd::from_raw_fd(fd)));
             }
         }
     }
+    if let Some(bytes) = dump {
+        log_hexdump("recv", label, fd, &bytes, fd_count);
+    }
     Ok(())
 }
 
 pub(crate) fn flush_buffer(
     socket: RawFd,
+    label: &str,
     buffer: &mut OutputBuffer,
 ) -> Result<FlushResult, TransError> {
     loop {
         if buffer.valid_to_byte == buffer.valid_from_byte {
             return Ok(FlushResult::Done);
         }
-        if write_to_socket(socket, buffer)? == FlushResult::Blocked {
+        if write_to_socket(socket, label, buffer)? == FlushResult::Blocked {
             return Ok(FlushResult::Blocked);
         }
     }
 }
 
-fn write_to_socket(socket: RawFd, buffer: &mut OutputBuffer) -> Result<FlushResult, TransError> {
+fn write_to_socket(
+    socket: RawFd,
+    label: &str,
+    buffer: &mut OutputBuffer,
+) -> Result<FlushResult, TransError> {
     let start = buffer.valid_from_byte;
     let mut end = buffer.valid_to_byte;
     let mut fd_offset = None;
@@ -228,6 +256,8 @@ fn write_to_socket(socket: RawFd, buffer: &mut OutputBuffer) -> Result<FlushResu
     };
     match uapi::sendmsg(socket, &msghdr, c::MSG_NOSIGNAL | c::MSG_DONTWAIT) {
         Ok(n) => {
+            let fd_count = fd_offset.as_ref().map(|fdo| fdo.num_fds).unwrap_or(0);
+            log_hexdump("send", label, socket, &buf[..n], fd_count);
             if let Some(fdo) = fd_offset {
                 buffer.fds.drain(..fdo.num_fds);
             }
@@ -244,6 +274,38 @@ fn write_to_socket(socket: RawFd, buffer: &mut OutputBuffer) -> Result<FlushResu
         Err(Errno(c::EPIPE)) => Err(TransError::Closed),
         Err(e) => Err(TransError::WriteToSocket(io::Error::from_raw_os_error(e.0))),
     }
+}
+
+fn hexdump_enabled() -> bool {
+    env::var(WL_PROXY_HEXDUMP).as_deref() == Ok("1")
+}
+
+fn hexdump_limit() -> usize {
+    env::var(WL_PROXY_HEXDUMP_LIMIT)
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(512)
+}
+
+fn log_hexdump(kind: &str, label: &str, socket: RawFd, bytes: &[u8], fd_count: usize) {
+    if !hexdump_enabled() {
+        return;
+    }
+    let limit = hexdump_limit();
+    let shown = bytes.len().min(limit);
+    let mut hex = String::with_capacity(shown.saturating_mul(3));
+    for (idx, byte) in bytes.iter().take(shown).enumerate() {
+        if idx > 0 {
+            hex.push(' ');
+        }
+        use std::fmt::Write;
+        let _ = write!(&mut hex, "{byte:02x}");
+    }
+    let truncated = bytes.len().saturating_sub(shown);
+    eprintln!(
+        "[wl-proxy-hexdump] kind={kind} label={label} socket={socket} bytes={} fds={fd_count} shown={shown} truncated={truncated} hex={hex}",
+        bytes.len(),
+    );
 }
 
 impl Default for InputBuffer {
@@ -319,9 +381,9 @@ impl OutputSwapchain {
         self.pending.back_mut().unwrap().formatter().unwrap()
     }
 
-    pub(crate) fn flush(&mut self, fd: RawFd) -> Result<FlushResult, TransError> {
+    pub(crate) fn flush(&mut self, fd: RawFd, label: &str) -> Result<FlushResult, TransError> {
         while let Some(buf) = self.pending.front_mut() {
-            match flush_buffer(fd, buf)? {
+            match flush_buffer(fd, label, buf)? {
                 FlushResult::Done => {
                     let buf = self.pending.pop_front().unwrap();
                     self.stash.push(buf);

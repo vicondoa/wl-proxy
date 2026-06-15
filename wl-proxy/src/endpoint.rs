@@ -117,10 +117,10 @@ impl Endpoint {
         self.objects.borrow().get(&id).cloned()
     }
 
-    pub(crate) fn flush(&self) -> Result<FlushResult, EndpointError> {
+    pub(crate) fn flush(&self, label: &str) -> Result<FlushResult, EndpointError> {
         self.outgoing
             .borrow_mut()
-            .flush(self.socket.as_raw_fd())
+            .flush(self.socket.as_raw_fd(), label)
             .map_err(EndpointError::Flush)
     }
 
@@ -144,6 +144,11 @@ impl Endpoint {
             }
             let msg = trans::read_message(
                 self.socket.as_raw_fd(),
+                if client.is_some() {
+                    "client->proxy"
+                } else {
+                    "server->proxy"
+                },
                 &mut may_read_from_socket,
                 buffer,
                 fds,

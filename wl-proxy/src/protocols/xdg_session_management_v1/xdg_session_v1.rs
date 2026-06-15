@@ -95,7 +95,6 @@ impl XdgSessionV1 {
             id,
             0,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 
@@ -155,7 +154,6 @@ impl XdgSessionV1 {
             id,
             1,
         ]);
-        self.core.handle_server_destroy();
         Ok(())
     }
 
