@@ -149,6 +149,55 @@ fn duplicate_server_id() {
 }
 
 #[test]
+fn server_id_reused_after_client_destroy_rebinds() {
+    // A server-created object is destroyed by the client (which keeps the
+    // proxy's server-side mapping so the destroy can be forwarded), then the
+    // server reuses the freed id for a new object. This must rebind rather than
+    // abort the connection with ServerIdInUse (the wl_data_offer / dmabuf
+    // wl_buffer id-reuse case).
+    let tp = test_proxy();
+    tp.client
+        .proxy_client
+        .endpoint
+        .outgoing
+        .borrow_mut()
+        .formatter()
+        .words([
+            tp.client.proxy_test.client_id().unwrap(),
+            1,  // event sent_object
+            !0, // id
+        ]);
+    tp.sync();
+    // Mark the proxy's server-side object as destroyed by the client, as a real
+    // wl_data_offer.destroy / wl_buffer.destroy would via handle_client_destroy.
+    tp.client
+        .state
+        .server
+        .as_ref()
+        .unwrap()
+        .objects
+        .borrow()
+        .get(&u32::MAX)
+        .unwrap()
+        .core()
+        .client_destroyed
+        .set(true);
+    // The server reuses the same id for a new object — must not panic.
+    tp.client
+        .proxy_client
+        .endpoint
+        .outgoing
+        .borrow_mut()
+        .formatter()
+        .words([
+            tp.client.proxy_test.client_id().unwrap(),
+            1,  // event sent_object
+            !0, // id
+        ]);
+    tp.sync();
+}
+
+#[test]
 fn server_destroyed() {
     let tp = test_proxy();
     tp.client.state.destroy();
