@@ -373,6 +373,10 @@ pub struct ObjectCore {
     pub(crate) forward_to_client: Cell<bool>,
     pub(crate) forward_to_server: Cell<bool>,
     pub(crate) awaiting_delete_id: Cell<bool>,
+    /// Set when the client destroys this object (a destructor request). For a
+    /// server-created object the server-side id mapping is kept until the id is
+    /// reused; this flag marks it safe to evict on reuse (see `set_server_id`).
+    pub(crate) client_destroyed: Cell<bool>,
     pub(crate) server_obj_id: Cell<Option<u32>>,
     pub(crate) client_obj_id: Cell<Option<u32>>,
     pub(crate) client_id: Cell<Option<u64>>,
@@ -425,6 +429,7 @@ impl ObjectCore {
             forward_to_client: Cell::new(state.forward_to_client.get()),
             forward_to_server: Cell::new(state.forward_to_server.get()),
             awaiting_delete_id: Default::default(),
+            client_destroyed: Default::default(),
             server_obj_id: Default::default(),
             client_obj_id: Default::default(),
             client_id: Default::default(),
@@ -474,10 +479,31 @@ impl ObjectCore {
             return Err(IdError::NoServer);
         };
         let objects = &mut *server.objects.borrow_mut();
-        let Entry::Vacant(entry) = objects.entry(id) else {
-            return Err(IdError::ServerIdInUse(id));
-        };
-        entry.insert(slf);
+        match objects.entry(id) {
+            Entry::Vacant(entry) => {
+                entry.insert(slf);
+            }
+            Entry::Occupied(mut entry) => {
+                // The compositor reuses a server-allocated id once the previous
+                // object with that id has been destroyed by the client.
+                // `handle_client_destroy` clears the client-side mapping but
+                // leaves our server-side mapping in place (so the destroy can
+                // still be forwarded to the server), which is why the reused id
+                // collides here. If that object has not been destroyed by the
+                // client it is a genuine protocol violation — the server reused
+                // a live id — so keep erroring. Otherwise detach the dead object
+                // and let the reused id bind to the new one, mirroring the
+                // zombie handling in `set_client_id`. Without this, a reused
+                // wl_data_offer (clipboard) or dmabuf wl_buffer id aborts
+                // dispatch and tears down the whole connection — unmapping the
+                // client's window on the compositor.
+                if !entry.get().core().client_destroyed.get() {
+                    return Err(IdError::ServerIdInUse(id));
+                }
+                entry.get().core().server_obj_id.take();
+                entry.insert(slf);
+            }
+        }
         self.server_obj_id.set(Some(id));
         Ok(())
     }
@@ -550,6 +576,7 @@ impl ObjectCore {
     }
 
     pub(crate) fn handle_client_destroy(&self) {
+        self.client_destroyed.set(true);
         let id = self.client_obj_id.get().unwrap();
         if let Some(idl) = id.checked_sub(MIN_SERVER_ID) {
             self.client_obj_id.take();
